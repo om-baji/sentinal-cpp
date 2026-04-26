@@ -1,0 +1,39 @@
+services:
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: sentinal_loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+      - ./infra/loki-config.yaml:/etc/loki/local-config.yaml:z,ro
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+    networks:
+      - sentinal_net
+
+  grafana:
+    image: grafana/grafana:10.3.3
+    container_name: sentinal_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=sentinal
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:z,ro
+    depends_on:
+      - loki
+    restart: unless-stopped
+    networks:
+      - sentinal_net
+
+volumes:
+  loki_data:
+  grafana_data:
+
+networks:
+  sentinal_net:
+    driver: bridge

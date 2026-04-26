@@ -1,0 +1,12 @@
+visualiser/
+node_modules/
+dataset/
+ml_gnn_report.md
+out/
+build/
+*.out
+*.tar
+.*tarball
+*.py
+*.ts
+*.tsx
