@@ -1,6 +1,7 @@
 #include "loki.hpp"
 #include "http.hpp"
 #include <sstream>
+#include <iostream>
 
 LokiClient::LokiClient(const std::string& url) {
     endpoint = url;
@@ -35,8 +36,16 @@ void LokiClient::push(const std::vector<LokiLabel>& labels,
         {"Content-Type", "application/json"}
     };
 
-    HttpClient client;
-    client.post(endpoint + "/loki/api/v1/push", payload, headers);
+    try {
+        HttpClient client;
+        HttpResponse resp = client.post(endpoint + "/loki/api/v1/push", payload, headers);
+        if (resp.status != 204) {
+            std::cerr << "[loki] push failed: status=" << resp.status
+                      << " body=" << resp.body << "\n";
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "[loki] push error: " << e.what() << "\n";
+    }
 }
 
 void LokiClient::pushLog(const std::map<std::string,std::string>& labels,

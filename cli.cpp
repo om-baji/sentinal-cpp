@@ -20,11 +20,120 @@
 #include "encoder/linear.hpp"
 #include "utils/helpers.hpp"
 #include "utils/loki.hpp"
+#include "utils/http.hpp"
 #include "utils/onxx_model.hpp"
 #include "utils/bpf_runner.hpp"
 #include "utils/syscall_graph.hpp"
 
 using namespace std;
+
+static const string kBase64Chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static string base64Encode(const vector<uint8_t>& data) {
+    string encoded;
+    int val = 0;
+    int bits = -6;
+    const unsigned int mask = 0x3F;
+
+    for (uint8_t c : data) {
+        val = (val << 8) + c;
+        bits += 8;
+        while (bits >= 0) {
+            encoded.push_back(kBase64Chars[(val >> bits) & mask]);
+            bits -= 6;
+        }
+    }
+
+    if (bits > -6) {
+        encoded.push_back(kBase64Chars[((val << 8) >> (bits + 8)) & mask]);
+    }
+    while (encoded.size() % 4) encoded.push_back('=');
+    return encoded;
+}
+
+static string readFileBytes(const string& path, vector<uint8_t>& out) {
+    ifstream f(path, ios::binary);
+    if (!f) return "";
+    out.assign(istreambuf_iterator<char>(f), {});
+    return path;
+}
+
+static const vector<string> kMalwareClasses = {
+    "Adialer.C", "Agent.FYI", "Allaple.A", "Allaple.L", "Alueron.gen!J",
+    "Autorun.K", "Benign", "C2LOP.P", "C2LOP.gen!g", "Dialplatform.B",
+    "Dontovo.A", "Fakerean", "Instantaccess", "Lolyda.AA1", "Lolyda.AA2",
+    "Lolyda.AA3", "Lolyda.AT", "Malex.gen!J", "Obfuscator.AD", "Rbot!gen",
+    "Skintrim.N", "Swizzor.gen!E", "Swizzor.gen!I", "VB.AT", "Wintrim.BX",
+    "Yuner.A"
+};
+
+static string classFromNumber(int cls) {
+    if (cls >= 0 && cls < (int)kMalwareClasses.size()) return kMalwareClasses[cls];
+    return "class_" + to_string(cls);
+}
+
+static string verdictFromClass(int cls) {
+    if (cls == 6) return "clean";
+    return "malicious";
+}
+
+static bool tryRemotePredict(const string& imageDir, string& verdict, string& scoreStr) {
+    string ppmPath;
+    for (int i = 0; ; i++) {
+        string candidate = imageDir + "/hilbert_" + to_string(i) + ".ppm";
+        struct stat st;
+        if (stat(candidate.c_str(), &st) == 0) {
+            ppmPath = candidate;
+            break;
+        }
+        if (i > 100) break;
+    }
+
+    if (ppmPath.empty()) {
+        for (int i = 0; ; i++) {
+            string candidate = imageDir + "/linear_" + to_string(i) + ".ppm";
+            struct stat st;
+            if (stat(candidate.c_str(), &st) == 0) {
+                ppmPath = candidate;
+                break;
+            }
+            if (i > 100) break;
+        }
+    }
+
+    if (ppmPath.empty()) return false;
+
+    vector<uint8_t> imgBytes;
+    readFileBytes(ppmPath, imgBytes);
+    if (imgBytes.empty()) return false;
+
+    string b64 = base64Encode(imgBytes);
+    string jsonBody = "{\"image\":\"" + b64 + "\"}";
+
+    try {
+        HttpClient http;
+        map<string, string> headers = {{"Content-Type", "application/json"}};
+        HttpResponse resp = http.post("http://localhost:8000/predict", jsonBody, headers);
+
+        if (resp.status != 200) return false;
+
+        string body = resp.body;
+        string numStr;
+        for (char c : body) {
+            if (c >= '0' && c <= '9') numStr += c;
+        }
+
+        if (numStr.empty()) return false;
+
+        int cls = stoi(numStr);
+        verdict = verdictFromClass(cls);
+        scoreStr = classFromNumber(cls);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
 
 static const map<uint32_t, string> kEventNames = {
     {1,  "clone"},    {2,  "execve"},   {3,  "exit"},
@@ -86,9 +195,7 @@ static string classifyResult(const vector<float>& scores) {
     for (size_t i = 1; i < scores.size(); i++) {
         if (scores[i] > scores[best]) best = i;
     }
-    const vector<string> labels = {"clean", "suspicious", "malicious"};
-    if (best < labels.size()) return labels[best];
-    return "class_" + to_string(best);
+    return verdictFromClass(static_cast<int>(best));
 }
 
 static string loadBpfProgram(const string& path) {
@@ -287,6 +394,8 @@ int main(int argc, char* argv[]) {
                         scoreStr << scores[i];
                     }
                     scoreStr_s = scoreStr.str();
+                } else if (tryRemotePredict(imageDir, verdict, scoreStr_s)) {
+                    cout << "[sentinal] remote prediction succeeded\n";
                 } else {
                     cerr << "[sentinal] model not found at " << modelPath
                          << " — skipping inference (defaulting to clean)\n";
@@ -294,7 +403,8 @@ int main(int argc, char* argv[]) {
                     scoreStr_s = "n/a";
                 }
 
-                cout << "[sentinal] verdict: " << verdict << "\n";
+                cout << "[sentinal] verdict: " << verdict
+                     << " | detected class: " << scoreStr_s << "\n";
 
                 LokiClient loki(lokiUrl);
                 map<string, string> preLabels = {
@@ -307,13 +417,21 @@ int main(int argc, char* argv[]) {
                 ostringstream preLog;
                 preLog << "image=" << image
                        << " verdict=" << verdict
-                       << " scores=[" << scoreStr_s << "]";
+                       << " class=" << scoreStr_s;
                 loki.pushLog(preLabels, preLog.str());
                 cout << "[sentinal] pre-run log pushed\n";
 
                 if (verdict == "malicious") {
-                    cerr << "[sentinal] BLOCKED: image flagged as malicious\n";
-                    return 2;
+                    cerr << "[sentinal] WARNING: image classified as malicious ("
+                         << scoreStr_s << ")\n";
+                    cerr << "[sentinal] proceed anyway? [y/N]: ";
+                    string answer;
+                    getline(cin, answer);
+                    if (answer.empty() || (answer[0] != 'y' && answer[0] != 'Y')) {
+                        cerr << "[sentinal] ABORTED by user\n";
+                        return 2;
+                    }
+                    cerr << "[sentinal] continuing at user request\n";
                 }
 
                 if (subcommand == "run") {

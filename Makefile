@@ -42,3 +42,14 @@ test-nginx:
 
 .PHONY: test test-nginx
 
+
+build-suspicious:
+	podman build -t sentinal/suspicious:latest ./malwares/suspicious/
+
+test-suspicious: build-suspicious
+	sudo SENTINAL_BPF_PATH=./bpf/sys_call.c ./cli.out run --rm sentinal/suspicious:latest 2>&1 \
+	| grep -v "prog tag mismatch\|WARNING: cannot get prog tag" \
+	&& echo "=== GRAPH OUTPUT ===" \
+	&& cat out/graphs/$$(ls -t out/graphs/ | head -1) | python3 -m json.tool
+
+.PHONY: build-suspicious test-suspicious

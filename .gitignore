@@ -10,3 +10,7 @@ build/
 *.py
 *.ts
 *.tsx
+*.zip
+models/
+malwares/
+notebooks/
