@@ -166,3 +166,70 @@ std::map<std::string, std::string> SyscallGraph::summary() const {
         {"top_syscalls",    top.str()},
     };
 }
+
+GnnInputs SyscallGraph::to_gnn_inputs() const {
+    static const int kFeatDim = 20;
+    static const int kMaxType = 14;
+
+    std::unordered_map<std::string, int64_t> id_to_idx;
+    int64_t idx = 0;
+
+    for (auto& [pid, p] : processes_)
+        id_to_idx[proc_id(pid)] = idx++;
+
+    for (auto& ev : events_)
+        id_to_idx[event_id(ev.seq)] = idx++;
+
+    int64_t N = static_cast<int64_t>(processes_.size() + events_.size());
+
+    std::vector<float>   x(N * kFeatDim, 0.0f);
+    std::vector<int64_t> batch(N, 0);
+
+    auto row = [&](int64_t i) -> float* { return x.data() + i * kFeatDim; };
+
+    for (auto& [pid, p] : processes_) {
+        float* r = row(id_to_idx[proc_id(pid)]);
+        r[0] = static_cast<float>(p.pid)  / 65536.0f;
+        r[1] = static_cast<float>(p.ppid) / 65536.0f;
+        r[2] = static_cast<float>(p.uid)  / 65536.0f;
+        r[3] = static_cast<float>(p.gid)  / 65536.0f;
+        r[4] = 1.0f;
+        r[5] = 0.0f;
+    }
+
+    for (auto& ev : events_) {
+        float* r = row(id_to_idx[event_id(ev.seq)]);
+        r[0] = static_cast<float>(ev.arg1) / 65536.0f;
+        r[1] = static_cast<float>(ev.arg2) / 65536.0f;
+        r[2] = 0.0f;
+        r[3] = 0.0f;
+        r[4] = 0.0f;
+        r[5] = 1.0f;
+        int type_idx = static_cast<int>(ev.type);
+        if (type_idx >= 1 && type_idx <= kMaxType)
+            r[6 + type_idx - 1] = 1.0f;
+    }
+
+    std::vector<int64_t> edge_src, edge_dst;
+    for (auto& e : edges_) {
+        auto s_it = id_to_idx.find(e.src);
+        auto d_it = id_to_idx.find(e.dst);
+        if (s_it == id_to_idx.end() || d_it == id_to_idx.end()) continue;
+        edge_src.push_back(s_it->second);
+        edge_dst.push_back(d_it->second);
+    }
+
+    int64_t E = static_cast<int64_t>(edge_src.size());
+    std::vector<int64_t> edge_index;
+    edge_index.reserve(2 * E);
+    edge_index.insert(edge_index.end(), edge_src.begin(), edge_src.end());
+    edge_index.insert(edge_index.end(), edge_dst.begin(), edge_dst.end());
+
+    GnnInputs out;
+    out.x          = std::move(x);
+    out.edge_index = std::move(edge_index);
+    out.batch      = std::move(batch);
+    out.num_nodes  = N;
+    out.num_edges  = E;
+    return out;
+}

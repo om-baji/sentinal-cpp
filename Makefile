@@ -12,6 +12,7 @@ CLI_SRC   := cli.cpp \
              encoder/image.cpp \
              encoder/linear.cpp \
              utils/onxx_model.cpp \
+             utils/gnn_model.cpp \
              utils/helpers.cpp \
              utils/http.cpp \
              utils/loki.cpp \

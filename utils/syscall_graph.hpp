@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <map>
 #include "bpf_runner.hpp"
+#include "gnn_model.hpp"
 
 struct ProcessNode {
     uint32_t pid;
@@ -41,6 +42,8 @@ public:
                         int exit_code) const;
 
     std::map<std::string, std::string> summary() const;
+
+    GnnInputs to_gnn_inputs() const;
 
 private:
     std::unordered_map<uint32_t, ProcessNode> processes_;

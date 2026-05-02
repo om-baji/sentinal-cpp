@@ -22,6 +22,7 @@
 #include "utils/loki.hpp"
 #include "utils/http.hpp"
 #include "utils/onxx_model.hpp"
+#include "utils/gnn_model.hpp"
 #include "utils/bpf_runner.hpp"
 #include "utils/syscall_graph.hpp"
 
@@ -234,7 +235,8 @@ static void runBpfMonitor(pid_t container_pid,
                           const string& runtime,
                           const string& image,
                           const string& verdict,
-                          const string& graphDir) {
+                          const string& graphDir,
+                          const string& gnnModelPath) {
     BpfRunner runner(bpf_src);
     SyscallGraph graph;
 
@@ -303,6 +305,37 @@ static void runBpfMonitor(pid_t container_pid,
     string graphJson = graph.to_json(image, verdict, runtime, exit_code);
     saveGraph(graphDir, image, graphJson);
 
+    string gnn_verdict = "unavailable";
+    string gnn_score   = "n/a";
+
+    [&]() noexcept {
+        struct stat gnn_stat;
+        if (gnnModelPath.empty() || stat(gnnModelPath.c_str(), &gnn_stat) != 0) {
+            cerr << "[sentinal] gnn model not found at " << gnnModelPath << " — skipping\n";
+            return;
+        }
+        try {
+            GnnModel gnn(gnnModelPath);
+            GnnInputs inputs = graph.to_gnn_inputs();
+            vector<float> logits = gnn.forward(inputs);
+
+            if (logits.size() >= 2) {
+                gnn_verdict = (logits[1] > logits[0]) ? "malicious" : "clean";
+                ostringstream ss;
+                ss << "normal=" << logits[0] << " malicious=" << logits[1];
+                gnn_score = ss.str();
+            }
+            cout << "[sentinal] gnn runtime verdict: " << gnn_verdict
+                 << " | " << gnn_score << "\n";
+        } catch (const exception& ex) {
+            cerr << "[sentinal] gnn inference failed: " << ex.what()
+                 << " — continuing without gnn verdict\n";
+        } catch (...) {
+            cerr << "[sentinal] gnn inference failed: unknown error"
+                 << " — continuing without gnn verdict\n";
+        }
+    }();
+
     auto graphSummary = graph.summary();
     LokiClient loki(loki_url);
     map<string, string> exit_labels = {
@@ -312,15 +345,18 @@ static void runBpfMonitor(pid_t container_pid,
         {"phase",           "exit"},
         {"total_events",    graphSummary["total_events"]},
         {"total_processes", graphSummary["total_processes"]},
+        {"gnn_verdict",     gnn_verdict},
     };
     ostringstream exitLog;
     exitLog << "container_exited"
-            << " image=" << image
-            << " exit_code=" << exit_code
-            << " nodes=" << graphSummary["total_events"]
-            << " processes=" << graphSummary["total_processes"]
-            << " edges=" << graphSummary["total_edges"]
-            << " top=[" << graphSummary["top_syscalls"] << "]";
+            << " image="    << image
+            << " exit_code="<< exit_code
+            << " nodes="    << graphSummary["total_events"]
+            << " processes="<< graphSummary["total_processes"]
+            << " edges="    << graphSummary["total_edges"]
+            << " top=["     << graphSummary["top_syscalls"] << "]"
+            << " gnn_verdict=" << gnn_verdict
+            << " gnn_score=["  << gnn_score << "]";
     loki.pushLog(exit_labels, exitLog.str());
 }
 
@@ -346,6 +382,9 @@ int main(int argc, char* argv[]) {
 
         const char* graphDir  = getenv("SENTINAL_GRAPH_DIR");
         if (!graphDir)  graphDir  = "./out/graphs";
+
+        const char* gnnModelPathEnv = getenv("SENTINAL_GNN_MODEL_PATH");
+        string gnnModelPath = gnnModelPathEnv ? gnnModelPathEnv : "./models/syscall_gnn.onnx";
 
         string subcommand;
         for (int i = 1; i < argc; i++) {
@@ -448,7 +487,7 @@ int main(int argc, char* argv[]) {
                     cout << "[sentinal] container pid=" << pid << " — eBPF monitor active\n";
 
                     string bpfSrc = loadBpfProgram(bpfPath);
-                    runBpfMonitor(pid, bpfSrc, lokiUrl, runtime, image, verdict, graphDir);
+                    runBpfMonitor(pid, bpfSrc, lokiUrl, runtime, image, verdict, graphDir, gnnModelPath);
                     return 0;
                 }
             }
