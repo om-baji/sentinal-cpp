@@ -5,7 +5,14 @@
 #include <unordered_map>
 #include <map>
 #include "bpf_runner.hpp"
-#include "gnn_model.hpp"
+
+struct GnnInputs {
+    std::vector<float>   x;
+    std::vector<int64_t> edge_index;
+    std::vector<int64_t> batch;
+    int64_t              num_nodes;
+    int64_t              num_edges;
+};
 
 struct ProcessNode {
     uint32_t pid;

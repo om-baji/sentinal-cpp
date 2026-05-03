@@ -7,10 +7,12 @@ build/
 *.out
 *.tar
 .*tarball
-*.py
+generate*
 *.ts
 *.tsx
 *.zip
 models/
 malwares/
 notebooks/
+dataset.md
+.venv

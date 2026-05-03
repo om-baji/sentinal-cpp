@@ -1,18 +1,11 @@
 CXX       := g++
 CXXFLAGS  := -std=c++17 -Wall -O2
 
-# ONNX Runtime
-ONNX_DIR  := /home/glxcier/onnxruntime-linux-x64-1.17.0
-ONNX_INC  := -I$(ONNX_DIR)/include
-ONNX_LIB  := -L$(ONNX_DIR)/lib -lonnxruntime -Wl,-rpath,$(ONNX_DIR)/lib
-
 # Sources
 CLI_SRC   := cli.cpp \
              encoder/filling.cpp \
              encoder/image.cpp \
              encoder/linear.cpp \
-             utils/onxx_model.cpp \
-             utils/gnn_model.cpp \
              utils/helpers.cpp \
              utils/http.cpp \
              utils/loki.cpp \
@@ -25,7 +18,7 @@ LIBS      := -lcurl -lbcc -larchive
 all: cli.out
 
 cli.out: $(CLI_SRC)
-	$(CXX) $(CXXFLAGS) $(ONNX_INC) -I. $(CLI_SRC) $(ONNX_LIB) $(LIBS) -o $@
+	$(CXX) $(CXXFLAGS) -I. $(CLI_SRC) $(LIBS) -o $@
 
 http: utils/http.cpp
 	$(CXX) $(CXXFLAGS) utils/http.cpp -lcurl -o http.out

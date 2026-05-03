@@ -34,7 +34,7 @@
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
-      "title": "Overview",
+      "title": "⚡ Overview",
       "type": "row"
     },
     {
@@ -45,27 +45,27 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#1f60c4", "value": null }
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
             ]
           },
           "mappings": [],
-          "unit": "short",
-          "noValue": "0"
+          "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
       "id": 1,
       "options": {
         "colorMode": "background",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
-        "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
+        "textMode": "auto"
       },
-      "title": "Total Scans",
+      "title": "Total Pre-Run Scans",
       "type": "stat",
       "targets": [
         {
@@ -84,27 +84,25 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#299c46", "value": null },
-              { "color": "#e02f44", "value": 1 }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
             ]
           },
-          "unit": "short",
-          "noValue": "0"
+          "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
       "id": 2,
       "options": {
         "colorMode": "background",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
-        "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
+        "textMode": "auto"
       },
-      "title": "Malicious",
+      "title": "Malicious Detections",
       "type": "stat",
       "targets": [
         {
@@ -123,27 +121,25 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#299c46", "value": null },
-              { "color": "#ff9830", "value": 1 }
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
             ]
           },
-          "unit": "short",
-          "noValue": "0"
+          "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
       "id": 3,
       "options": {
         "colorMode": "background",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
-        "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
+        "textMode": "auto"
       },
-      "title": "Suspicious",
+      "title": "Suspicious Detections",
       "type": "stat",
       "targets": [
         {
@@ -162,64 +158,24 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#299c46", "value": null }
+              { "color": "blue", "value": null }
             ]
           },
-          "unit": "short",
-          "noValue": "0"
+          "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
-      "id": 6,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
-        "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
-      },
-      "title": "Clean",
-      "type": "stat",
-      "targets": [
-        {
-          "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({app=\"sentinal\", phase=\"pre-run\", verdict=\"clean\"}[$__range])",
-          "legendFormat": "Clean",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "loki", "uid": "${datasource}" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "#5794f2", "value": null }
-            ]
-          },
-          "unit": "short",
-          "noValue": "0"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
       "id": 4,
       "options": {
         "colorMode": "background",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
-        "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
+        "textMode": "auto"
       },
-      "title": "Runtime Syscall Events",
+      "title": "Total Runtime Syscall Events",
       "type": "stat",
       "targets": [
         {
@@ -238,24 +194,22 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#8f3bb8", "value": null }
+              { "color": "purple", "value": null }
             ]
           },
-          "unit": "short",
-          "noValue": "0"
+          "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
       "id": 5,
       "options": {
         "colorMode": "background",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
-        "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
+        "textMode": "auto"
       },
       "title": "Containers Exited",
       "type": "stat",
@@ -271,32 +225,25 @@
 
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
       "id": 101,
-      "title": "Pre-Run Analysis",
+      "title": "🔍 Pre-Run Analysis",
       "type": "row"
     },
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" }
-        },
+        "defaults": { "color": { "mode": "palette-classic" } },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "malicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#e02f44", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "suspicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#ff9830", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "clean" }, "properties": [{ "id": "color", "value": { "fixedColor": "#299c46", "mode": "fixed" } }] }
+          { "matcher": { "id": "byName", "options": "malicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "suspicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "clean" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }
         ]
       },
-      "gridPos": { "h": 9, "w": 6, "x": 0, "y": 7 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
       "id": 10,
       "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "values": ["percent", "value"]
-        },
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["percent", "value"] },
         "pieType": "donut",
         "tooltip": { "mode": "single", "sort": "none" }
       },
@@ -318,24 +265,18 @@
           "color": { "mode": "palette-classic" },
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 8,
-            "spanNulls": false,
-            "lineInterpolation": "smooth",
-            "showPoints": "never"
+            "fillOpacity": 10,
+            "spanNulls": false
           },
-          "unit": "reqps"
+          "unit": "short"
         },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "malicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#e02f44", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "suspicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#ff9830", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "clean" }, "properties": [{ "id": "color", "value": { "fixedColor": "#299c46", "mode": "fixed" } }] }
-        ]
+        "overrides": []
       },
-      "gridPos": { "h": 9, "w": 18, "x": 6, "y": 7 },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 6 },
       "id": 11,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max", "mean"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "title": "Pre-Run Scan Rate by Verdict",
       "type": "timeseries",
@@ -351,9 +292,9 @@
 
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
       "id": 102,
-      "title": "Runtime Syscall Monitoring",
+      "title": "🛡️ Runtime Syscall Monitoring",
       "type": "row"
     },
     {
@@ -363,27 +304,25 @@
           "color": { "mode": "palette-classic" },
           "custom": {
             "lineWidth": 1,
-            "fillOpacity": 8,
-            "spanNulls": false,
-            "lineInterpolation": "smooth",
-            "showPoints": "never"
+            "fillOpacity": 15,
+            "spanNulls": false
           },
-          "unit": "reqps"
+          "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 15 },
       "id": 20,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max"] },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
-      "title": "Syscall Event Rate by Container Image",
+      "title": "Syscall Event Rate by Image",
       "type": "timeseries",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by(image) (rate({app=\"sentinal\", phase=\"runtime\", image=~\"$image\"}[$__rate_interval]))",
+          "expr": "sum by(image) (rate({app=\"sentinal\", phase=\"runtime\"}[$__rate_interval]))",
           "legendFormat": "{{image}}",
           "refId": "A"
         }
@@ -394,23 +333,18 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 8,
-            "lineInterpolation": "smooth",
-            "showPoints": "never"
-          },
-          "unit": "reqps"
+          "custom": { "lineWidth": 1, "fillOpacity": 15 },
+          "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 14, "x": 0, "y": 25 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
       "id": 21,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max"] },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
-      "title": "Syscall Rate by Type",
+      "title": "Syscall Rate by Type (clone/execve/setuid/ptrace…)",
       "type": "timeseries",
       "targets": [
         {
@@ -425,13 +359,13 @@
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": { "mode": "palette-classic" },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#299c46", "value": null },
-              { "color": "#ff9830", "value": 50 },
-              { "color": "#e02f44", "value": 200 }
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 50 },
+              { "color": "red", "value": 200 }
             ]
           },
           "unit": "short",
@@ -439,19 +373,16 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 10, "x": 14, "y": 25 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
       "id": 22,
       "options": {
         "displayMode": "gradient",
         "orientation": "horizontal",
         "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
         "showUnfilled": true,
-        "text": {},
-        "minVizHeight": 16,
-        "namePlacement": "auto",
-        "valueMode": "color"
+        "text": {}
       },
-      "title": "Total Syscall Volume by Type",
+      "title": "Total Syscall Counts by Type",
       "type": "bargauge",
       "targets": [
         {
@@ -465,9 +396,9 @@
 
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
       "id": 103,
-      "title": "High-Risk Syscall Focus",
+      "title": "⚠️ High-Risk Syscall Focus",
       "type": "row"
     },
     {
@@ -475,32 +406,24 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 12,
-            "lineInterpolation": "smooth",
-            "showPoints": "never"
-          },
-          "unit": "reqps"
+          "custom": { "lineWidth": 2, "fillOpacity": 20 },
+          "unit": "short"
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "ptrace" },   "properties": [{ "id": "color", "value": { "fixedColor": "#e02f44", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "setuid" },   "properties": [{ "id": "color", "value": { "fixedColor": "#ff9830", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "setgid" },   "properties": [{ "id": "color", "value": { "fixedColor": "#fa6400", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "unshare" },  "properties": [{ "id": "color", "value": { "fixedColor": "#f2cc0c", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "chroot" },   "properties": [{ "id": "color", "value": { "fixedColor": "#ff7383", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "mount" },    "properties": [{ "id": "color", "value": { "fixedColor": "#b877d9", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "setns" },    "properties": [{ "id": "color", "value": { "fixedColor": "#8ab8ff", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "cap_capable" }, "properties": [{ "id": "color", "value": { "fixedColor": "#f9934e", "mode": "fixed" } }] }
+          { "matcher": { "id": "byName", "options": "ptrace" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "setuid" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "unshare" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "chroot" }, "properties": [{ "id": "color", "value": { "fixedColor": "semi-dark-orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "mount" }, "properties": [{ "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }] }
         ]
       },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 35 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
       "id": 30,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max", "mean"] },
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max"] },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
-      "title": "High-Risk Syscall Rate  ·  ptrace  /  setuid  /  setgid  /  unshare  /  chroot  /  mount  /  setns  /  cap_capable",
+      "title": "High-Risk Syscall Rate (ptrace / setuid / unshare / chroot / mount)",
       "type": "timeseries",
       "targets": [
         {
@@ -514,9 +437,9 @@
 
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 },
       "id": 104,
-      "title": "Container Exit Summaries",
+      "title": "📋 Container Exit Summaries",
       "type": "row"
     },
     {
@@ -524,23 +447,18 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "lineInterpolation": "smooth",
-            "showPoints": "auto"
-          },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 45 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 41 },
       "id": 40,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "sum"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
-      "title": "Exit Events per Container Image",
+      "title": "Exit Events per Image Over Time",
       "type": "timeseries",
       "targets": [
         {
@@ -554,12 +472,12 @@
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 45 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 41 },
       "id": 41,
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
-        "prettifyLogMessage": true,
+        "prettifyLogMessage": false,
         "showCommonLabels": false,
         "showLabels": true,
         "showTime": true,
@@ -580,20 +498,20 @@
 
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 54 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 49 },
       "id": 105,
-      "title": "Raw Log Streams",
+      "title": "📜 Raw Log Streams",
       "type": "row"
     },
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 11, "w": 12, "x": 0, "y": 55 },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 50 },
       "id": 50,
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
-        "prettifyLogMessage": true,
+        "prettifyLogMessage": false,
         "showCommonLabels": false,
         "showLabels": true,
         "showTime": true,
@@ -614,12 +532,12 @@
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 11, "w": 12, "x": 12, "y": 55 },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 50 },
       "id": 51,
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
-        "prettifyLogMessage": true,
+        "prettifyLogMessage": false,
         "showCommonLabels": false,
         "showLabels": true,
         "showTime": true,
@@ -679,6 +597,6 @@
   "timezone": "browser",
   "title": "Sentinal — Threat Detection",
   "uid": "sentinal-threat-detection",
-  "version": 2,
+  "version": 1,
   "weekStart": ""
 }

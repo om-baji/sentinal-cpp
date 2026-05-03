@@ -16,42 +16,16 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <thread>
 #include "encoder/filling.hpp"
 #include "encoder/linear.hpp"
 #include "utils/helpers.hpp"
 #include "utils/loki.hpp"
 #include "utils/http.hpp"
-#include "utils/onxx_model.hpp"
-#include "utils/gnn_model.hpp"
 #include "utils/bpf_runner.hpp"
 #include "utils/syscall_graph.hpp"
 
 using namespace std;
-
-static const string kBase64Chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-static string base64Encode(const vector<uint8_t>& data) {
-    string encoded;
-    int val = 0;
-    int bits = -6;
-    const unsigned int mask = 0x3F;
-
-    for (uint8_t c : data) {
-        val = (val << 8) + c;
-        bits += 8;
-        while (bits >= 0) {
-            encoded.push_back(kBase64Chars[(val >> bits) & mask]);
-            bits -= 6;
-        }
-    }
-
-    if (bits > -6) {
-        encoded.push_back(kBase64Chars[((val << 8) >> (bits + 8)) & mask]);
-    }
-    while (encoded.size() % 4) encoded.push_back('=');
-    return encoded;
-}
 
 static string readFileBytes(const string& path, vector<uint8_t>& out) {
     ifstream f(path, ios::binary);
@@ -79,7 +53,110 @@ static string verdictFromClass(int cls) {
     return "malicious";
 }
 
-static bool tryRemotePredict(const string& imageDir, string& verdict, string& scoreStr) {
+static string trimCopy(const string& s) {
+    size_t start = s.find_first_not_of(" \t\n\r");
+    if (start == string::npos) return "";
+    size_t end = s.find_last_not_of(" \t\n\r");
+    return s.substr(start, end - start + 1);
+}
+
+static bool parseFirstIntAfterKey(const string& body, const string& key, int& value) {
+    string needle = string("\"") + key + "\"";
+    size_t keyPos = body.find(needle);
+    if (keyPos == string::npos) return false;
+
+    size_t openPos = body.find('[', keyPos);
+    if (openPos == string::npos) return false;
+
+    size_t firstDigit = body.find_first_of("-0123456789", openPos);
+    if (firstDigit == string::npos) return false;
+
+    size_t endPos = body.find_first_not_of("-0123456789", firstDigit);
+    string number = body.substr(firstDigit, endPos - firstDigit);
+    if (number.empty()) return false;
+
+    value = stoi(number);
+    return true;
+}
+
+static bool parseFirstFloatListAfterKey(const string& body, const string& key, vector<float>& values) {
+    string needle = string("\"") + key + "\"";
+    size_t keyPos = body.find(needle);
+    if (keyPos == string::npos) return false;
+
+    size_t firstOpen = body.find('[', keyPos);
+    if (firstOpen == string::npos) return false;
+    size_t secondOpen = body.find('[', firstOpen + 1);
+    if (secondOpen == string::npos) return false;
+    size_t closePos = body.find(']', secondOpen + 1);
+    if (closePos == string::npos) return false;
+
+    string payload = body.substr(secondOpen + 1, closePos - secondOpen - 1);
+    stringstream ss(payload);
+    string token;
+    values.clear();
+    while (getline(ss, token, ',')) {
+        token = trimCopy(token);
+        if (token.empty()) continue;
+        values.push_back(stof(token));
+    }
+
+    return !values.empty();
+}
+
+static string buildCnnMultipartBody(const vector<uint8_t>& imageBytes,
+                                    const string& filename,
+                                    string& boundary) {
+    boundary = "----sentinal-model-boundary";
+    string body;
+    body.reserve(imageBytes.size() + 256);
+    body += "--" + boundary + "\r\n";
+    body += "Content-Disposition: form-data; name=\"file\"; filename=\"" + filename + "\"\r\n";
+    body += "Content-Type: application/octet-stream\r\n\r\n";
+    body.append(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
+    body += "\r\n--" + boundary + "--\r\n";
+    return body;
+}
+
+static string buildGnnRequestBody(const GnnInputs& inputs) {
+    constexpr int kFeatDim = 20;
+    size_t numNodes = inputs.num_nodes > 0 ? static_cast<size_t>(inputs.num_nodes) : 0;
+    size_t numEdges = inputs.edge_index.size() / 2;
+
+    ostringstream ss;
+    ss << "{\"x\":[";
+    for (size_t node = 0; node < numNodes; node++) {
+        if (node) ss << ',';
+        ss << '[';
+        for (int feat = 0; feat < kFeatDim; feat++) {
+            if (feat) ss << ',';
+            ss << inputs.x[node * kFeatDim + feat];
+        }
+        ss << ']';
+    }
+    ss << "],\"edge_index\":[[";
+    for (size_t edge = 0; edge < numEdges; edge++) {
+        if (edge) ss << ',';
+        ss << inputs.edge_index[edge];
+    }
+    ss << "],[";
+    for (size_t edge = 0; edge < numEdges; edge++) {
+        if (edge) ss << ',';
+        ss << inputs.edge_index[numEdges + edge];
+    }
+    ss << "]],\"batch\":[";
+    for (size_t node = 0; node < inputs.batch.size(); node++) {
+        if (node) ss << ',';
+        ss << inputs.batch[node];
+    }
+    ss << "]}";
+    return ss.str();
+}
+
+static bool tryRemotePredict(const string& imageDir,
+                             const string& apiBaseUrl,
+                             string& verdict,
+                             string& scoreStr) {
     string ppmPath;
     for (int i = 0; ; i++) {
         string candidate = imageDir + "/hilbert_" + to_string(i) + ".ppm";
@@ -109,29 +186,62 @@ static bool tryRemotePredict(const string& imageDir, string& verdict, string& sc
     readFileBytes(ppmPath, imgBytes);
     if (imgBytes.empty()) return false;
 
-    string b64 = base64Encode(imgBytes);
-    string jsonBody = "{\"image\":\"" + b64 + "\"}";
-
     try {
         HttpClient http;
-        map<string, string> headers = {{"Content-Type", "application/json"}};
-        HttpResponse resp = http.post("http://localhost:8000/predict", jsonBody, headers);
+        string boundary;
+        string body = buildCnnMultipartBody(imgBytes, "image.ppm", boundary);
+        map<string, string> headers = {{"Content-Type", "multipart/form-data; boundary=" + boundary}};
+        HttpResponse resp = http.post(apiBaseUrl + "/predict/cnn", body, headers);
 
         if (resp.status != 200) return false;
 
-        string body = resp.body;
-        string numStr;
-        for (char c : body) {
-            if (c >= '0' && c <= '9') numStr += c;
+        int cls = -1;
+        if (!parseFirstIntAfterKey(resp.body, "preds", cls)) {
+            return false;
         }
 
-        if (numStr.empty()) return false;
-
-        int cls = stoi(numStr);
         verdict = verdictFromClass(cls);
         scoreStr = classFromNumber(cls);
         return true;
     } catch (...) {
+        return false;
+    }
+}
+
+static bool tryRemoteGnnPredict(const GnnInputs& inputs,
+                                const string& apiBaseUrl,
+                                string& verdict,
+                                string& scoreStr) {
+    try {
+        HttpClient http;
+        map<string, string> headers = {{"Content-Type", "application/json"}};
+        string body = buildGnnRequestBody(inputs);
+        HttpResponse resp = http.post(apiBaseUrl + "/predict/gat", body, headers);
+
+        if (resp.status != 200) {
+            cerr << "[sentinal] gnn api returned status=" << resp.status << " body=" << resp.body << "\n";
+            return false;
+        }
+
+        int cls = -1;
+        if (!parseFirstIntAfterKey(resp.body, "preds", cls)) {
+            cerr << "[sentinal] gnn api missing preds in body=" << resp.body << "\n";
+            return false;
+        }
+
+        vector<float> logits;
+        if (parseFirstFloatListAfterKey(resp.body, "logits", logits) && logits.size() >= 2) {
+            ostringstream ss;
+            ss << "normal=" << logits[0] << " malicious=" << logits[1];
+            scoreStr = ss.str();
+        } else {
+            scoreStr = "n/a";
+        }
+
+        verdict = verdictFromClass(cls);
+        return true;
+    } catch (...) {
+        cerr << "[sentinal] gnn api request failed\n";
         return false;
     }
 }
@@ -190,15 +300,6 @@ static string saveImageAsTarball(const string& runtime, const string& image) {
     return tarPath;
 }
 
-static string classifyResult(const vector<float>& scores) {
-    if (scores.empty()) return "unknown";
-    size_t best = 0;
-    for (size_t i = 1; i < scores.size(); i++) {
-        if (scores[i] > scores[best]) best = i;
-    }
-    return verdictFromClass(static_cast<int>(best));
-}
-
 static string loadBpfProgram(const string& path) {
     ifstream f(path);
     if (!f) throw runtime_error("cannot open bpf program: " + path);
@@ -236,16 +337,68 @@ static void runBpfMonitor(pid_t container_pid,
                           const string& image,
                           const string& verdict,
                           const string& graphDir,
-                          const string& gnnModelPath) {
+                          const string& apiBaseUrl) {
     BpfRunner runner(bpf_src);
     SyscallGraph graph;
 
     mutex batch_mu;
     vector<LokiEntry> batch;
+    time_t last_flush = time(nullptr);
+
+    const char* flushIntervalEnv = getenv("SENTINAL_FLUSH_INTERVAL");
+    int flush_interval = 10;
+    if (flushIntervalEnv) {
+        try { flush_interval = stoi(flushIntervalEnv); } catch (...) { flush_interval = 10; }
+    }
+
+    auto flush_now = [&](bool invokeGnn) {
+        vector<LokiEntry> batch_copy;
+        GnnInputs inputs;
+        bool haveInputs = false;
+        long long ts = (long long)time(nullptr);
+        {
+            lock_guard<mutex> lk(batch_mu);
+            inputs = graph.to_gnn_inputs();
+            if (batch.empty() && inputs.num_nodes == 0) return;
+            batch_copy = batch;
+            batch.clear();
+            haveInputs = (inputs.num_nodes > 0);
+        }
+
+        cout << "[sentinal] flush_now invoked ts=" << ts << " invokeGnn=" << (invokeGnn?"1":"0") << " batch_len=" << batch_copy.size() << " nodes=" << (haveInputs?to_string(inputs.num_nodes):string("0")) << "\n";
+        LokiClient loki(loki_url);
+        vector<LokiLabel> labels = {
+            {"app",     "sentinal"},
+            {"runtime", runtime},
+            {"image",   image},
+            {"phase",   "runtime"},
+        };
+        loki.push(labels, batch_copy);
+
+        if (invokeGnn && haveInputs) {
+            thread([inputs, apiBaseUrl, loki_url, runtime, image, ts]() mutable {
+                string v,s;
+                if (tryRemoteGnnPredict(inputs, apiBaseUrl, v, s)) {
+                    LokiClient loki2(loki_url);
+                    map<string,string> gnn_labels = {
+                        {"app", "sentinal"},
+                        {"runtime", runtime},
+                        {"image", image},
+                        {"phase", "runtime-gnn"},
+                        {"ts", to_string(ts)},
+                    };
+                    ostringstream gnn_line;
+                    gnn_line << "runtime_gnn_verdict=" << v
+                             << " runtime_gnn_score=[" << s << "]";
+                    loki2.pushLog(gnn_labels, gnn_line.str());
+                }
+            }).detach();
+        }
+
+        last_flush = ts;
+    };
 
     runner.set_callback([&](const Event& e) {
-        graph.add_event(e);
-
         string name = "unknown";
         auto it = kEventNames.find(e.type);
         if (it != kEventNames.end()) name = it->second;
@@ -262,19 +415,16 @@ static void runBpfMonitor(pid_t container_pid,
              << " arg1=" << e.arg1
              << " arg2=" << e.arg2;
 
-        lock_guard<mutex> lk(batch_mu);
-        batch.push_back({ts, line.str()});
+        bool should_flush = false;
+        {
+            lock_guard<mutex> lk(batch_mu);
+            graph.add_event(e);
+            batch.push_back({ts, line.str()});
+            should_flush = (batch.size() >= 50);
+        }
 
-        if (batch.size() >= 50) {
-            LokiClient loki(loki_url);
-            vector<LokiLabel> labels = {
-                {"app",     "sentinal"},
-                {"runtime", runtime},
-                {"image",   image},
-                {"phase",   "runtime"},
-            };
-            loki.push(labels, batch);
-            batch.clear();
+        if (should_flush) {
+            flush_now(true);
         }
     });
 
@@ -283,22 +433,16 @@ static void runBpfMonitor(pid_t container_pid,
     int status = 0;
     while (waitpid(container_pid, &status, WNOHANG) == 0) {
         runner.poll();
+        time_t now = time(nullptr);
+        if (difftime(now, last_flush) >= flush_interval) {
+            // periodic flush in background
+            flush_now(true);
+        }
+        this_thread::sleep_for(chrono::milliseconds(100));
     }
 
-    {
-        lock_guard<mutex> lk(batch_mu);
-        if (!batch.empty()) {
-            LokiClient loki(loki_url);
-            vector<LokiLabel> labels = {
-                {"app",     "sentinal"},
-                {"runtime", runtime},
-                {"image",   image},
-                {"phase",   "runtime"},
-            };
-            loki.push(labels, batch);
-            batch.clear();
-        }
-    }
+    // final flush of any remaining events and run final GNN
+    flush_now(true);
 
     int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 
@@ -309,31 +453,14 @@ static void runBpfMonitor(pid_t container_pid,
     string gnn_score   = "n/a";
 
     [&]() noexcept {
-        struct stat gnn_stat;
-        if (gnnModelPath.empty() || stat(gnnModelPath.c_str(), &gnn_stat) != 0) {
-            cerr << "[sentinal] gnn model not found at " << gnnModelPath << " — skipping\n";
+        GnnInputs inputs = graph.to_gnn_inputs();
+        if (!tryRemoteGnnPredict(inputs, apiBaseUrl, gnn_verdict, gnn_score)) {
+            cerr << "[sentinal] gnn inference failed: remote api unavailable"
+                 << " — continuing without gnn verdict\n";
             return;
         }
-        try {
-            GnnModel gnn(gnnModelPath);
-            GnnInputs inputs = graph.to_gnn_inputs();
-            vector<float> logits = gnn.forward(inputs);
-
-            if (logits.size() >= 2) {
-                gnn_verdict = (logits[1] > logits[0]) ? "malicious" : "clean";
-                ostringstream ss;
-                ss << "normal=" << logits[0] << " malicious=" << logits[1];
-                gnn_score = ss.str();
-            }
-            cout << "[sentinal] gnn runtime verdict: " << gnn_verdict
-                 << " | " << gnn_score << "\n";
-        } catch (const exception& ex) {
-            cerr << "[sentinal] gnn inference failed: " << ex.what()
-                 << " — continuing without gnn verdict\n";
-        } catch (...) {
-            cerr << "[sentinal] gnn inference failed: unknown error"
-                 << " — continuing without gnn verdict\n";
-        }
+        cout << "[sentinal] gnn runtime verdict: " << gnn_verdict
+             << " | " << gnn_score << "\n";
     }();
 
     auto graphSummary = graph.summary();
@@ -374,17 +501,14 @@ int main(int argc, char* argv[]) {
         const char* lokiUrl   = getenv("SENTINAL_LOKI_URL");
         if (!lokiUrl)   lokiUrl   = "http://localhost:3100";
 
-        const char* modelPath = getenv("SENTINAL_MODEL_PATH");
-        if (!modelPath) modelPath = "/etc/sentinal/model.onnx";
+        const char* modelApiUrl = getenv("SENTINAL_MODEL_API_URL");
+        if (!modelApiUrl) modelApiUrl = "http://localhost:8000";
 
         const char* bpfPath   = getenv("SENTINAL_BPF_PATH");
         if (!bpfPath)   bpfPath   = "./bpf/sys_call.c";
 
         const char* graphDir  = getenv("SENTINAL_GRAPH_DIR");
         if (!graphDir)  graphDir  = "./out/graphs";
-
-        const char* gnnModelPathEnv = getenv("SENTINAL_GNN_MODEL_PATH");
-        string gnnModelPath = gnnModelPathEnv ? gnnModelPathEnv : "./models/syscall_gnn.onnx";
 
         string subcommand;
         for (int i = 1; i < argc; i++) {
@@ -419,24 +543,11 @@ int main(int argc, char* argv[]) {
                 string verdict;
                 string scoreStr_s;
 
-                struct stat model_stat;
-                if (stat(modelPath, &model_stat) == 0) {
-                    cout << "[sentinal] running model...\n";
-                    OnnxModel model(modelPath);
-                    vector<int64_t> shape = {1, 1, 1024, 1024};
-                    vector<float> scores = model.forward(shape);
-                    verdict = classifyResult(scores);
-
-                    ostringstream scoreStr;
-                    for (size_t i = 0; i < scores.size(); i++) {
-                        if (i) scoreStr << ",";
-                        scoreStr << scores[i];
-                    }
-                    scoreStr_s = scoreStr.str();
-                } else if (tryRemotePredict(imageDir, verdict, scoreStr_s)) {
+                cout << "[sentinal] running model...\n";
+                if (tryRemotePredict(imageDir, modelApiUrl, verdict, scoreStr_s)) {
                     cout << "[sentinal] remote prediction succeeded\n";
                 } else {
-                    cerr << "[sentinal] model not found at " << modelPath
+                    cerr << "[sentinal] inference api unavailable at " << modelApiUrl
                          << " — skipping inference (defaulting to clean)\n";
                     verdict = "clean";
                     scoreStr_s = "n/a";
@@ -487,7 +598,7 @@ int main(int argc, char* argv[]) {
                     cout << "[sentinal] container pid=" << pid << " — eBPF monitor active\n";
 
                     string bpfSrc = loadBpfProgram(bpfPath);
-                    runBpfMonitor(pid, bpfSrc, lokiUrl, runtime, image, verdict, graphDir, gnnModelPath);
+                    runBpfMonitor(pid, bpfSrc, lokiUrl, runtime, image, verdict, graphDir, modelApiUrl);
                     return 0;
                 }
             }
