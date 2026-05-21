@@ -48,10 +48,7 @@ static string classFromNumber(int cls) {
     return "class_" + to_string(cls);
 }
 
-static string verdictFromClass(int cls) {
-    if (cls == 6) return "clean";
-    return "malicious";
-}
+
 
 static string trimCopy(const string& s) {
     size_t start = s.find_first_not_of(" \t\n\r");
@@ -186,6 +183,12 @@ static bool tryRemotePredict(const string& imageDir,
     readFileBytes(ppmPath, imgBytes);
     if (imgBytes.empty()) return false;
 
+    float confidenceThreshold = 0.70f;
+    const char* threshEnv = getenv("SENTINAL_CONFIDENCE_THRESHOLD");
+    if (threshEnv) {
+        try { confidenceThreshold = stof(threshEnv); } catch (...) {}
+    }
+
     try {
         HttpClient http;
         string boundary;
@@ -200,8 +203,34 @@ static bool tryRemotePredict(const string& imageDir,
             return false;
         }
 
-        verdict = verdictFromClass(cls);
-        scoreStr = classFromNumber(cls);
+        vector<float> probs;
+        float confidence = 0.0f;
+        if (parseFirstFloatListAfterKey(resp.body, "probs", probs)) {
+            if (cls >= 0 && cls < (int)probs.size()) {
+                confidence = probs[cls];
+            }
+        }
+
+        ostringstream ss;
+        ss.precision(4);
+        ss << fixed;
+
+        if (cls == 6) {
+            verdict = "clean";
+            ss << "Benign (conf=" << confidence << ")";
+        } else if (confidence < confidenceThreshold) {
+            verdict = "clean";
+            ss << classFromNumber(cls) << " (conf=" << confidence << ", below threshold " << confidenceThreshold << ")";
+            cerr << "[sentinal] low confidence " << confidence
+                 << " < " << confidenceThreshold
+                 << " for class " << classFromNumber(cls)
+                 << " — treating as clean\n";
+        } else {
+            verdict = "malicious";
+            ss << classFromNumber(cls) << " (conf=" << confidence << ")";
+        }
+
+        scoreStr = ss.str();
         return true;
     } catch (...) {
         return false;
@@ -212,6 +241,12 @@ static bool tryRemoteGnnPredict(const GnnInputs& inputs,
                                 const string& apiBaseUrl,
                                 string& verdict,
                                 string& scoreStr) {
+    float gnnThreshold = 0.60f;
+    const char* gnnThreshEnv = getenv("SENTINAL_GNN_CONFIDENCE_THRESHOLD");
+    if (gnnThreshEnv) {
+        try { gnnThreshold = stof(gnnThreshEnv); } catch (...) {}
+    }
+
     try {
         HttpClient http;
         map<string, string> headers = {{"Content-Type", "application/json"}};
@@ -229,16 +264,31 @@ static bool tryRemoteGnnPredict(const GnnInputs& inputs,
             return false;
         }
 
-        vector<float> logits;
-        if (parseFirstFloatListAfterKey(resp.body, "logits", logits) && logits.size() >= 2) {
-            ostringstream ss;
-            ss << "normal=" << logits[0] << " malicious=" << logits[1];
-            scoreStr = ss.str();
-        } else {
-            scoreStr = "n/a";
+        vector<float> probs;
+        float malProb = 0.0f;
+        float normProb = 0.0f;
+        if (parseFirstFloatListAfterKey(resp.body, "probs", probs) && probs.size() >= 2) {
+            malProb = probs[0];
+            normProb = probs[1];
         }
 
-        verdict = verdictFromClass(cls);
+        ostringstream ss;
+        ss.precision(4);
+        ss << fixed;
+        ss << "malicious=" << malProb << " normal=" << normProb;
+
+        if (cls == 0 && malProb >= gnnThreshold) {
+            verdict = "malicious";
+        } else if (cls == 0 && malProb < gnnThreshold) {
+            verdict = "clean";
+            cerr << "[sentinal] gnn low confidence " << malProb
+                 << " < " << gnnThreshold
+                 << " — treating as clean\n";
+        } else {
+            verdict = "clean";
+        }
+
+        scoreStr = ss.str();
         return true;
     } catch (...) {
         cerr << "[sentinal] gnn api request failed\n";
@@ -277,11 +327,40 @@ static string buildArgv0Cmd(const string& runtime, int argc, char* argv[]) {
     return cmd.str();
 }
 
+static bool flagTakesValue(const char* flag) {
+    static const char* kFlags[] = {
+        "--name", "-p", "--publish", "--volume", "-v", "--env", "-e",
+        "--network", "--net", "--hostname", "-h", "--user", "-u",
+        "--workdir", "-w", "--entrypoint", "--label", "-l",
+        "--mount", "--cpus", "--memory", "-m", "--restart",
+        "--log-driver", "--log-opt", "--pid", "--ipc",
+        "--expose", "--add-host", "--dns", "--dns-search",
+        "--device", "--cap-add", "--cap-drop", "--security-opt",
+        "--ulimit", "--cgroupns", "--userns", "--pull",
+        "--platform", "--shm-size", "--stop-signal", "--stop-timeout",
+        "--tmpfs", "--sysctl", "-f", "--file", "--tag", "-t",
+        "--build-arg", "--target", "--output", "-o",
+        nullptr
+    };
+    for (const char** p = kFlags; *p; ++p) {
+        if (!strcmp(flag, *p)) return true;
+    }
+    return false;
+}
+
 static string findImageArg(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "run") || !strcmp(argv[i], "build") || !strcmp(argv[i], "pull")) {
             for (int j = i + 1; j < argc; j++) {
-                if (argv[j][0] != '-') return string(argv[j]);
+                string arg = argv[j];
+                if (arg[0] == '-') {
+                    if (arg.find('=') != string::npos) continue;
+                    if (flagTakesValue(argv[j]) && j + 1 < argc) {
+                        j++;
+                    }
+                    continue;
+                }
+                return arg;
             }
         }
     }
@@ -294,6 +373,7 @@ static string saveImageAsTarball(const string& runtime, const string& image) {
         if (c == '/' || c == ':') c = '_';
     }
     tarPath += ".tar";
+    unlink(tarPath.c_str());
     string cmd = runtime + " save " + image + " -o " + tarPath + " 2>&1";
     string out = execCommand(cmd);
     if (!out.empty()) cerr << out;
@@ -344,28 +424,29 @@ static void runBpfMonitor(pid_t container_pid,
     mutex batch_mu;
     vector<LokiEntry> batch;
     time_t last_flush = time(nullptr);
+    time_t last_gnn = time(nullptr);
 
     const char* flushIntervalEnv = getenv("SENTINAL_FLUSH_INTERVAL");
-    int flush_interval = 10;
+    int flush_interval = 30;
     if (flushIntervalEnv) {
-        try { flush_interval = stoi(flushIntervalEnv); } catch (...) { flush_interval = 10; }
+        try { flush_interval = stoi(flushIntervalEnv); } catch (...) { flush_interval = 30; }
     }
 
-    auto flush_now = [&](bool invokeGnn) {
+    const char* gnnIntervalEnv = getenv("SENTINAL_GNN_INTERVAL");
+    int gnn_interval = 30;
+    if (gnnIntervalEnv) {
+        try { gnn_interval = stoi(gnnIntervalEnv); } catch (...) { gnn_interval = 30; }
+    }
+
+    auto flush_logs = [&]() {
         vector<LokiEntry> batch_copy;
-        GnnInputs inputs;
-        bool haveInputs = false;
-        long long ts = (long long)time(nullptr);
         {
             lock_guard<mutex> lk(batch_mu);
-            inputs = graph.to_gnn_inputs();
-            if (batch.empty() && inputs.num_nodes == 0) return;
+            if (batch.empty()) return;
             batch_copy = batch;
             batch.clear();
-            haveInputs = (inputs.num_nodes > 0);
         }
 
-        cout << "[sentinal] flush_now invoked ts=" << ts << " invokeGnn=" << (invokeGnn?"1":"0") << " batch_len=" << batch_copy.size() << " nodes=" << (haveInputs?to_string(inputs.num_nodes):string("0")) << "\n";
         LokiClient loki(loki_url);
         vector<LokiLabel> labels = {
             {"app",     "sentinal"},
@@ -374,28 +455,40 @@ static void runBpfMonitor(pid_t container_pid,
             {"phase",   "runtime"},
         };
         loki.push(labels, batch_copy);
+        last_flush = (long long)time(nullptr);
+    };
 
-        if (invokeGnn && haveInputs) {
-            thread([inputs, apiBaseUrl, loki_url, runtime, image, ts]() mutable {
-                string v,s;
-                if (tryRemoteGnnPredict(inputs, apiBaseUrl, v, s)) {
-                    LokiClient loki2(loki_url);
-                    map<string,string> gnn_labels = {
-                        {"app", "sentinal"},
-                        {"runtime", runtime},
-                        {"image", image},
-                        {"phase", "runtime-gnn"},
-                        {"ts", to_string(ts)},
-                    };
-                    ostringstream gnn_line;
-                    gnn_line << "runtime_gnn_verdict=" << v
-                             << " runtime_gnn_score=[" << s << "]";
-                    loki2.pushLog(gnn_labels, gnn_line.str());
-                }
-            }).detach();
+    auto run_gnn = [&]() {
+        GnnInputs inputs;
+        long long ts = (long long)time(nullptr);
+        {
+            lock_guard<mutex> lk(batch_mu);
+            inputs = graph.to_gnn_inputs();
         }
+        if (inputs.num_nodes == 0) return;
 
-        last_flush = ts;
+        cout << "[sentinal] gnn check ts=" << ts << " nodes=" << inputs.num_nodes << "\n";
+
+        thread([inputs, apiBaseUrl, loki_url, runtime, image, ts]() mutable {
+            string v,s;
+            if (tryRemoteGnnPredict(inputs, apiBaseUrl, v, s)) {
+                cout << "[sentinal] gnn verdict=" << v << " score=[" << s << "]\n";
+                LokiClient loki2(loki_url);
+                map<string,string> gnn_labels = {
+                    {"app", "sentinal"},
+                    {"runtime", runtime},
+                    {"image", image},
+                    {"phase", "runtime-gnn"},
+                    {"ts", to_string(ts)},
+                };
+                ostringstream gnn_line;
+                gnn_line << "runtime_gnn_verdict=" << v
+                         << " runtime_gnn_score=[" << s << "]";
+                loki2.pushLog(gnn_labels, gnn_line.str());
+            }
+        }).detach();
+
+        last_gnn = ts;
     };
 
     runner.set_callback([&](const Event& e) {
@@ -424,7 +517,7 @@ static void runBpfMonitor(pid_t container_pid,
         }
 
         if (should_flush) {
-            flush_now(true);
+            flush_logs();
         }
     });
 
@@ -435,14 +528,16 @@ static void runBpfMonitor(pid_t container_pid,
         runner.poll();
         time_t now = time(nullptr);
         if (difftime(now, last_flush) >= flush_interval) {
-            // periodic flush in background
-            flush_now(true);
+            flush_logs();
+        }
+        if (difftime(now, last_gnn) >= gnn_interval) {
+            run_gnn();
         }
         this_thread::sleep_for(chrono::milliseconds(100));
     }
 
-    // final flush of any remaining events and run final GNN
-    flush_now(true);
+    flush_logs();
+    run_gnn();
 
     int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 
@@ -454,6 +549,10 @@ static void runBpfMonitor(pid_t container_pid,
 
     [&]() noexcept {
         GnnInputs inputs = graph.to_gnn_inputs();
+        if (inputs.num_nodes == 0) {
+            cerr << "[sentinal] gnn skipped: empty graph\n";
+            return;
+        }
         if (!tryRemoteGnnPredict(inputs, apiBaseUrl, gnn_verdict, gnn_score)) {
             cerr << "[sentinal] gnn inference failed: remote api unavailable"
                  << " — continuing without gnn verdict\n";
@@ -524,7 +623,11 @@ int main(int argc, char* argv[]) {
             if (!image.empty()) {
                 cout << "[sentinal] image: " << image << "\n";
 
-                execCommand(runtime + " pull " + image + " 2>&1");
+                string inspectOut = execCommand(runtime + " image inspect " + image + " > /dev/null 2>&1 && echo exists");
+                if (trimCopy(inspectOut) != "exists") {
+                    cout << "[sentinal] pulling image...\n";
+                    execCommand(runtime + " pull " + image + " 2>&1");
+                }
 
                 cout << "[sentinal] saving tarball...\n";
                 string tarPath = saveImageAsTarball(runtime, image);

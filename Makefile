@@ -38,11 +38,21 @@ test-nginx:
 
 
 build-suspicious:
-	podman build -t sentinal/suspicious:latest ./malwares/suspicious/
+	sudo podman build -t sentinal/suspicious:latest ./malwares/suspicious/
+
+# test-suspicious: build-suspicious
+# 	sudo SENTINAL_BPF_PATH=./bpf/sys_call.c SENTINAL_FLUSH_INTERVAL=3 \
+# 	./cli.out run --rm sentinal/suspicious:latest 2>&1 \
+# 	| grep -v "prog tag mismatch\|WARNING: cannot get prog tag" \
+# 	; sleep 2 \
+# 	&& echo "=== GRAPH OUTPUT ===" \
+# 	&& cat out/graphs/$$(ls -t out/graphs/ | head -1) | python3 -m json.tool
 
 test-suspicious: build-suspicious
-	sudo SENTINAL_BPF_PATH=./bpf/sys_call.c ./cli.out run --rm sentinal/suspicious:latest 2>&1 \
+	sudo SENTINAL_BPF_PATH=./bpf/sys_call.c SENTINAL_FLUSH_INTERVAL=30 SENTINAL_GNN_CONFIDENCE_THRESHOLD=0.25 \
+	./cli.out run --rm sentinal/suspicious:latest 2>&1 \
 	| grep -v "prog tag mismatch\|WARNING: cannot get prog tag" \
+	; sleep 2 \
 	&& echo "=== GRAPH OUTPUT ===" \
 	&& cat out/graphs/$$(ls -t out/graphs/ | head -1) | python3 -m json.tool
 

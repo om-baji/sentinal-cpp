@@ -14,7 +14,7 @@ from pydantic import BaseModel
 sys.path.append(str(Path(__file__).parent.parent))
 
 from models.cnn import CNN
-from models.gnn import SyscallGAT, SyscallRGAT
+from models.gnn import NODE_FEAT_DIM, SyscallGAT, SyscallRGAT
 from models.other import SyscallMLPClassifier
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -41,7 +41,7 @@ def _register(name: str, model: torch.nn.Module):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    base_dir = Path(__file__).parent / "models" / "pytorch"
+    base_dir = Path(__file__).parent.parent / "models" / "pytorch"
 
     loaders = {
         "cnn": lambda: _load_state_dict_model(CNN(), base_dir / "best_cnn.pth"),
@@ -104,6 +104,11 @@ class PredictResponse(BaseModel):
     preds: List[int]
 
 
+@app.get("/")
+def root():
+    return {"status": "ok", "device": str(DEVICE), "loaded_models": list(MODELS.keys())}
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "device": str(DEVICE), "loaded_models": list(MODELS.keys())}
@@ -123,6 +128,14 @@ def list_models():
 @app.post("/predict/gat", response_model=PredictResponse)
 def predict_gat(req: GATPredictRequest):
     model = _get_model("gat")
+    if not req.x:
+        raise HTTPException(status_code=422, detail="empty node feature matrix")
+    feat_dim = len(req.x[0])
+    if feat_dim != NODE_FEAT_DIM:
+        raise HTTPException(
+            status_code=422,
+            detail=f"expected {NODE_FEAT_DIM} features per node, got {feat_dim}",
+        )
     x = torch.tensor(req.x, dtype=torch.float32, device=DEVICE)
     edge_index = torch.tensor(req.edge_index, dtype=torch.long, device=DEVICE)
     batch = torch.tensor(req.batch, dtype=torch.long, device=DEVICE)

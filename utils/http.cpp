@@ -52,7 +52,7 @@ HttpResponse HttpClient::request(const std::string& method,
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "cpp-client/1.0");
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60L);
 
     if (!body.empty()) {
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());

@@ -8,7 +8,9 @@
     { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
     { "type": "panel", "id": "bargauge", "name": "Bar gauge", "version": "" },
     { "type": "panel", "id": "logs", "name": "Logs", "version": "" },
-    { "type": "panel", "id": "stat", "name": "Stat", "version": "" }
+    { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "" },
+    { "type": "panel", "id": "text", "name": "Text", "version": "" }
   ],
   "annotations": {
     "list": [
@@ -23,20 +25,22 @@
       }
     ]
   },
-  "description": "Sentinal — container threat detection: pre-run CNN verdicts, runtime eBPF syscall events, and exit graph summaries streamed from Loki.",
+  "description": "Sentinal — Container Threat Intelligence: pre-run CNN image classification, runtime eBPF syscall monitoring, GNN-based behavioral analysis, and container exit forensics.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
   "links": [],
   "panels": [
+
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
-      "title": "Overview",
+      "title": "⬡  Overview",
       "type": "row"
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -45,7 +49,7 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#1f60c4", "value": null }
+              { "color": "#1a7edb", "value": null }
             ]
           },
           "mappings": [],
@@ -54,28 +58,29 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
+      "gridPos": { "h": 4, "w": 3, "x": 0, "y": 1 },
       "id": 1,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "background_solid",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
         "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
+        "text": { "titleSize": 11, "valueSize": 32 }
       },
       "title": "Total Scans",
       "type": "stat",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({app=\"sentinal\", phase=\"pre-run\"}[$__range])",
+          "expr": "count_over_time({app=\"sentinal\", phase=\"pre-run\", image=~\"$image\"}[$__range])",
           "legendFormat": "Scans",
           "refId": "A"
         }
       ]
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -84,8 +89,7 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#299c46", "value": null },
-              { "color": "#e02f44", "value": 1 }
+              { "color": "#56a64b", "value": null }
             ]
           },
           "unit": "short",
@@ -93,105 +97,29 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
-      "id": 2,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
-        "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
-      },
-      "title": "Malicious",
-      "type": "stat",
-      "targets": [
-        {
-          "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({app=\"sentinal\", phase=\"pre-run\", verdict=\"malicious\"}[$__range])",
-          "legendFormat": "Malicious",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "loki", "uid": "${datasource}" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "#299c46", "value": null },
-              { "color": "#ff9830", "value": 1 }
-            ]
-          },
-          "unit": "short",
-          "noValue": "0"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
-      "id": 3,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
-        "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
-      },
-      "title": "Suspicious",
-      "type": "stat",
-      "targets": [
-        {
-          "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({app=\"sentinal\", phase=\"pre-run\", verdict=\"suspicious\"}[$__range])",
-          "legendFormat": "Suspicious",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "loki", "uid": "${datasource}" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "#299c46", "value": null }
-            ]
-          },
-          "unit": "short",
-          "noValue": "0"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
+      "gridPos": { "h": 4, "w": 3, "x": 3, "y": 1 },
       "id": 6,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "background_solid",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
         "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
+        "text": { "titleSize": 11, "valueSize": 32 }
       },
       "title": "Clean",
       "type": "stat",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({app=\"sentinal\", phase=\"pre-run\", verdict=\"clean\"}[$__range])",
+          "expr": "count_over_time({app=\"sentinal\", phase=\"pre-run\", verdict=\"clean\", image=~\"$image\"}[$__range])",
           "legendFormat": "Clean",
           "refId": "A"
         }
       ]
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -200,7 +128,7 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#5794f2", "value": null }
+              { "color": "#e02f44", "value": null }
             ]
           },
           "unit": "short",
@@ -208,28 +136,68 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
-      "id": 4,
+      "gridPos": { "h": 4, "w": 3, "x": 6, "y": 1 },
+      "id": 2,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "background_solid",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
         "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
+        "text": { "titleSize": 11, "valueSize": 32 }
       },
-      "title": "Runtime Syscall Events",
+      "title": "Malicious",
       "type": "stat",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({app=\"sentinal\", phase=\"runtime\"}[$__range])",
+          "expr": "count_over_time({app=\"sentinal\", phase=\"pre-run\", verdict=\"malicious\", image=~\"$image\"}[$__range])",
+          "legendFormat": "Malicious",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#3274d9", "value": null }
+            ]
+          },
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 9, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
+        "textMode": "value_and_name",
+        "text": { "titleSize": 11, "valueSize": 32 }
+      },
+      "title": "Syscall Events",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "count_over_time({app=\"sentinal\", phase=\"runtime\", image=~\"$image\"}[$__range])",
           "legendFormat": "Events",
           "refId": "A"
         }
       ]
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -246,36 +214,68 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+      "gridPos": { "h": 4, "w": 3, "x": 12, "y": 1 },
       "id": 5,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "background_solid",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
         "textMode": "value_and_name",
-        "text": { "titleSize": 12, "valueSize": 36 }
+        "text": { "titleSize": 11, "valueSize": 32 }
       },
-      "title": "Containers Exited",
+      "title": "GNN Checks",
       "type": "stat",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({app=\"sentinal\", phase=\"exit\"}[$__range])",
-          "legendFormat": "Exits",
+          "expr": "count_over_time({app=\"sentinal\", phase=\"runtime-gnn\", image=~\"$image\"}[$__range])",
+          "legendFormat": "GNN",
           "refId": "A"
         }
       ]
     },
 
     {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
-      "id": 101,
-      "title": "Pre-Run Analysis",
-      "type": "row"
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#705da0", "value": null }
+            ]
+          },
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 15, "y": 1 },
+      "id": 7,
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
+        "textMode": "value_and_name",
+        "text": { "titleSize": 11, "valueSize": 32 }
+      },
+      "title": "Containers Exited",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "count_over_time({app=\"sentinal\", phase=\"exit\", image=~\"$image\"}[$__range])",
+          "legendFormat": "Exits",
+          "refId": "A"
+        }
+      ]
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -284,11 +284,10 @@
         },
         "overrides": [
           { "matcher": { "id": "byName", "options": "malicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#e02f44", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "suspicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#ff9830", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "clean" }, "properties": [{ "id": "color", "value": { "fixedColor": "#299c46", "mode": "fixed" } }] }
+          { "matcher": { "id": "byName", "options": "clean" }, "properties": [{ "id": "color", "value": { "fixedColor": "#56a64b", "mode": "fixed" } }] }
         ]
       },
-      "gridPos": { "h": 9, "w": 6, "x": 0, "y": 7 },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
       "id": 10,
       "options": {
         "legend": {
@@ -298,51 +297,15 @@
           "values": ["percent", "value"]
         },
         "pieType": "donut",
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "single", "sort": "none" },
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false }
       },
       "title": "CNN Verdict Distribution",
       "type": "piechart",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by(verdict) (count_over_time({app=\"sentinal\", phase=\"pre-run\"}[$__range]))",
-          "legendFormat": "{{verdict}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "loki", "uid": "${datasource}" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "spanNulls": false,
-            "lineInterpolation": "smooth",
-            "showPoints": "never"
-          },
-          "unit": "reqps"
-        },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "malicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#e02f44", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "suspicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#ff9830", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "clean" }, "properties": [{ "id": "color", "value": { "fixedColor": "#299c46", "mode": "fixed" } }] }
-        ]
-      },
-      "gridPos": { "h": 9, "w": 18, "x": 6, "y": 7 },
-      "id": 11,
-      "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max", "mean"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
-      },
-      "title": "Pre-Run Scan Rate by Verdict",
-      "type": "timeseries",
-      "targets": [
-        {
-          "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by(verdict) (rate({app=\"sentinal\", phase=\"pre-run\"}[$__rate_interval]))",
+          "expr": "sum by(verdict) (count_over_time({app=\"sentinal\", phase=\"pre-run\", image=~\"$image\"}[$__range]))",
           "legendFormat": "{{verdict}}",
           "refId": "A"
         }
@@ -351,11 +314,88 @@
 
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
-      "id": 102,
-      "title": "Runtime Syscall Monitoring",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 101,
+      "title": "⬡  Pre-Run Image Analysis (CNN)",
       "type": "row"
     },
+
+    {
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "spanNulls": false,
+            "lineInterpolation": "smooth",
+            "showPoints": "auto",
+            "pointSize": 6,
+            "stacking": { "mode": "none", "group": "A" },
+            "axisPlacement": "auto",
+            "scaleDistribution": { "type": "linear" }
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "malicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#e02f44", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "clean" }, "properties": [{ "id": "color", "value": { "fixedColor": "#56a64b", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "id": 11,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max", "sum"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "title": "Scan Volume by Verdict",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "sum by(verdict) (count_over_time({app=\"sentinal\", phase=\"pre-run\", image=~\"$image\"}[$__rate_interval]))",
+          "legendFormat": "{{verdict}}",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "id": 12,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "title": "Pre-Run Scan Log",
+      "type": "logs",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "{app=\"sentinal\", phase=\"pre-run\", image=~\"$image\"}",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 102,
+      "title": "⬡  Runtime Syscall Monitoring (eBPF)",
+      "type": "row"
+    },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -363,32 +403,35 @@
           "color": { "mode": "palette-classic" },
           "custom": {
             "lineWidth": 1,
-            "fillOpacity": 8,
+            "fillOpacity": 20,
             "spanNulls": false,
             "lineInterpolation": "smooth",
-            "showPoints": "never"
+            "showPoints": "never",
+            "stacking": { "mode": "normal", "group": "A" },
+            "axisPlacement": "auto"
           },
-          "unit": "reqps"
+          "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 19 },
       "id": 20,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max"] },
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max", "sum"] },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
-      "title": "Syscall Event Rate by Container Image",
+      "title": "Syscall Event Rate by Container",
       "type": "timeseries",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by(image) (rate({app=\"sentinal\", phase=\"runtime\", image=~\"$image\"}[$__rate_interval]))",
+          "expr": "sum by(image) (count_over_time({app=\"sentinal\", phase=\"runtime\", image=~\"$image\"}[$__rate_interval]))",
           "legendFormat": "{{image}}",
           "refId": "A"
         }
       ]
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -396,31 +439,33 @@
           "color": { "mode": "palette-classic" },
           "custom": {
             "lineWidth": 1,
-            "fillOpacity": 8,
+            "fillOpacity": 10,
             "lineInterpolation": "smooth",
-            "showPoints": "never"
+            "showPoints": "never",
+            "stacking": { "mode": "none", "group": "A" }
           },
-          "unit": "reqps"
+          "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 14, "x": 0, "y": 25 },
+      "gridPos": { "h": 9, "w": 14, "x": 0, "y": 28 },
       "id": 21,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max"] },
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max", "sum"] },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
-      "title": "Syscall Rate by Type",
+      "title": "Syscall Breakdown by Type",
       "type": "timeseries",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by(syscall) (rate({app=\"sentinal\", phase=\"runtime\"} | logfmt | __error__=\"\" [$__rate_interval]))",
+          "expr": "sum by(syscall) (count_over_time({app=\"sentinal\", phase=\"runtime\", image=~\"$image\"} | logfmt | __error__=\"\" [$__rate_interval]))",
           "legendFormat": "{{syscall}}",
           "refId": "A"
         }
       ]
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -429,7 +474,7 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "#299c46", "value": null },
+              { "color": "#37872d", "value": null },
               { "color": "#ff9830", "value": 50 },
               { "color": "#e02f44", "value": 200 }
             ]
@@ -439,7 +484,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 10, "x": 14, "y": 25 },
+      "gridPos": { "h": 9, "w": 10, "x": 14, "y": 28 },
       "id": 22,
       "options": {
         "displayMode": "gradient",
@@ -451,12 +496,12 @@
         "namePlacement": "auto",
         "valueMode": "color"
       },
-      "title": "Total Syscall Volume by Type",
+      "title": "Syscall Volume (Total Count)",
       "type": "bargauge",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by(syscall) (count_over_time({app=\"sentinal\", phase=\"runtime\"} | logfmt | __error__=\"\" | syscall != \"\" [$__range]))",
+          "expr": "sum by(syscall) (count_over_time({app=\"sentinal\", phase=\"runtime\", image=~\"$image\"} | logfmt | __error__=\"\" | syscall != \"\" [$__range]))",
           "legendFormat": "{{syscall}}",
           "refId": "A"
         }
@@ -465,11 +510,12 @@
 
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
       "id": 103,
-      "title": "High-Risk Syscall Focus",
+      "title": "⬡  High-Risk Syscalls",
       "type": "row"
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -477,35 +523,38 @@
           "color": { "mode": "palette-classic" },
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 12,
+            "fillOpacity": 15,
             "lineInterpolation": "smooth",
-            "showPoints": "never"
+            "showPoints": "auto",
+            "pointSize": 5,
+            "stacking": { "mode": "none", "group": "A" }
           },
-          "unit": "reqps"
+          "unit": "short"
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "ptrace" },   "properties": [{ "id": "color", "value": { "fixedColor": "#e02f44", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "setuid" },   "properties": [{ "id": "color", "value": { "fixedColor": "#ff9830", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "setgid" },   "properties": [{ "id": "color", "value": { "fixedColor": "#fa6400", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "unshare" },  "properties": [{ "id": "color", "value": { "fixedColor": "#f2cc0c", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "chroot" },   "properties": [{ "id": "color", "value": { "fixedColor": "#ff7383", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "mount" },    "properties": [{ "id": "color", "value": { "fixedColor": "#b877d9", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "setns" },    "properties": [{ "id": "color", "value": { "fixedColor": "#8ab8ff", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "cap_capable" }, "properties": [{ "id": "color", "value": { "fixedColor": "#f9934e", "mode": "fixed" } }] }
+          { "matcher": { "id": "byName", "options": "ptrace" },       "properties": [{ "id": "color", "value": { "fixedColor": "#e02f44", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "setuid" },       "properties": [{ "id": "color", "value": { "fixedColor": "#ff9830", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "setgid" },       "properties": [{ "id": "color", "value": { "fixedColor": "#fa6400", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "unshare" },      "properties": [{ "id": "color", "value": { "fixedColor": "#f2cc0c", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "chroot" },       "properties": [{ "id": "color", "value": { "fixedColor": "#ff7383", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "mount" },        "properties": [{ "id": "color", "value": { "fixedColor": "#b877d9", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "setns" },        "properties": [{ "id": "color", "value": { "fixedColor": "#8ab8ff", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "cap_capable" },  "properties": [{ "id": "color", "value": { "fixedColor": "#f9934e", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "kill" },         "properties": [{ "id": "color", "value": { "fixedColor": "#c4162a", "mode": "fixed" } }] }
         ]
       },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 35 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 38 },
       "id": 30,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max", "mean"] },
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "max", "sum"] },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
-      "title": "High-Risk Syscall Rate  ·  ptrace  /  setuid  /  setgid  /  unshare  /  chroot  /  mount  /  setns  /  cap_capable",
+      "title": "High-Risk Syscall Activity",
       "type": "timeseries",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by(syscall) (rate({app=\"sentinal\", phase=\"runtime\"} | logfmt | __error__=\"\" | syscall=~\"ptrace|setuid|setgid|unshare|setns|chroot|mount|cap_capable\" [$__rate_interval]))",
+          "expr": "sum by(syscall) (count_over_time({app=\"sentinal\", phase=\"runtime\", image=~\"$image\"} | logfmt | __error__=\"\" | syscall=~\"ptrace|setuid|setgid|unshare|setns|chroot|mount|umount|cap_capable|kill\" [$__rate_interval]))",
           "legendFormat": "{{syscall}}",
           "refId": "A"
         }
@@ -514,11 +563,12 @@
 
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 },
       "id": 104,
-      "title": "Container Exit Summaries",
+      "title": "⬡  Runtime GNN Behavioral Analysis",
       "type": "row"
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": {
@@ -526,35 +576,144 @@
           "color": { "mode": "palette-classic" },
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 15,
             "lineInterpolation": "smooth",
-            "showPoints": "auto"
+            "showPoints": "auto",
+            "pointSize": 7,
+            "stacking": { "mode": "none", "group": "A" }
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 45 },
-      "id": 40,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+      "id": 60,
       "options": {
         "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "sum"] },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
-      "title": "Exit Events per Container Image",
+      "title": "GNN Checks Over Time",
       "type": "timeseries",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by(image) (count_over_time({app=\"sentinal\", phase=\"exit\"}[$__rate_interval]))",
+          "expr": "sum by(image) (count_over_time({app=\"sentinal\", phase=\"runtime-gnn\", image=~\"$image\"}[$__rate_interval]))",
           "legendFormat": "{{image}}",
           "refId": "A"
         }
       ]
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 45 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "id": 61,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "title": "GNN Verdict Log Stream",
+      "type": "logs",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "{app=\"sentinal\", phase=\"runtime-gnn\", image=~\"$image\"}",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 },
+      "id": 105,
+      "title": "⬡  Container Exit Forensics",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "lineInterpolation": "smooth",
+            "showPoints": "auto",
+            "pointSize": 7
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 57 },
+      "id": 40,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["lastNotNull", "sum"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "title": "Exit Events by Container",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "sum by(image) (count_over_time({app=\"sentinal\", phase=\"exit\", image=~\"$image\"}[$__rate_interval]))",
+          "legendFormat": "{{image}}",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "malicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "#e02f44", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "clean" }, "properties": [{ "id": "color", "value": { "fixedColor": "#56a64b", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "unavailable" }, "properties": [{ "id": "color", "value": { "fixedColor": "#8e8e8e", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 57 },
+      "id": 42,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "values": ["percent", "value"]
+        },
+        "pieType": "donut",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false }
+      },
+      "title": "Exit GNN Verdict Distribution",
+      "type": "piechart",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "sum by(gnn_verdict) (count_over_time({app=\"sentinal\", phase=\"exit\", image=~\"$image\"}[$__range]))",
+          "legendFormat": "{{gnn_verdict}}",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 57 },
       "id": 41,
       "options": {
         "dedupStrategy": "none",
@@ -571,7 +730,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "{app=\"sentinal\", phase=\"exit\"}",
+          "expr": "{app=\"sentinal\", phase=\"exit\", image=~\"$image\"}",
           "legendFormat": "",
           "refId": "A"
         }
@@ -580,42 +739,109 @@
 
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 54 },
-      "id": 105,
-      "title": "Raw Log Streams",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 65 },
+      "id": 106,
+      "title": "⬡  Process & Graph Metrics (from Exit Labels)",
       "type": "row"
     },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 11, "w": 12, "x": 0, "y": 55 },
-      "id": 50,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": true,
-        "showCommonLabels": false,
-        "showLabels": true,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#37872d", "value": null },
+              { "color": "#ff9830", "value": 500 },
+              { "color": "#e02f44", "value": 2000 }
+            ]
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
       },
-      "title": "Pre-Run Log Stream",
-      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 66 },
+      "id": 70,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showUnfilled": true,
+        "text": {},
+        "minVizHeight": 16,
+        "namePlacement": "auto",
+        "valueMode": "color"
+      },
+      "title": "Total Syscall Nodes per Container",
+      "type": "bargauge",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "{app=\"sentinal\", phase=\"pre-run\"}",
-          "legendFormat": "",
+          "expr": "sum by(image) (count_over_time({app=\"sentinal\", phase=\"exit\", image=~\"$image\"} | logfmt | __error__=\"\" | nodes != \"\" [$__range]))",
+          "legendFormat": "{{image}}",
           "refId": "A"
         }
       ]
     },
+
+    {
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#37872d", "value": null },
+              { "color": "#ff9830", "value": 10 },
+              { "color": "#e02f44", "value": 50 }
+            ]
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 66 },
+      "id": 71,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showUnfilled": true,
+        "text": {},
+        "minVizHeight": 16,
+        "namePlacement": "auto",
+        "valueMode": "color"
+      },
+      "title": "Unique Processes per Container",
+      "type": "bargauge",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "sum by(image, total_processes) (count_over_time({app=\"sentinal\", phase=\"exit\", image=~\"$image\"} [$__range]))",
+          "legendFormat": "{{image}} ({{total_processes}} procs)",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 74 },
+      "id": 107,
+      "title": "⬡  Raw Runtime Syscall Stream",
+      "type": "row"
+    },
+
     {
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 11, "w": 12, "x": 12, "y": 55 },
-      "id": 51,
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 75 },
+      "id": 50,
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
@@ -637,10 +863,11 @@
         }
       ]
     }
+
   ],
   "refresh": "10s",
   "schemaVersion": 39,
-  "tags": ["sentinal", "security", "ebpf", "loki"],
+  "tags": ["sentinal", "security", "ebpf", "loki", "gnn", "cnn"],
   "templating": {
     "list": [
       {
@@ -671,14 +898,33 @@
         "regex": "",
         "sort": 1,
         "type": "query"
+      },
+      {
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "datasource": { "type": "loki", "uid": "${datasource}" },
+        "definition": "label_values({app=\"sentinal\"}, runtime)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Runtime",
+        "multi": false,
+        "name": "runtime",
+        "options": [],
+        "query": "label_values({app=\"sentinal\"}, runtime)",
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
       }
     ]
   },
   "time": { "from": "now-1h", "to": "now" },
-  "timepicker": {},
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"],
+    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d"]
+  },
   "timezone": "browser",
-  "title": "Sentinal — Threat Detection",
+  "title": "Sentinal — Threat Intelligence",
   "uid": "sentinal-threat-detection",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
